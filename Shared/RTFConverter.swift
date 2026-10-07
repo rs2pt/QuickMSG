@@ -92,7 +92,10 @@ enum RTFConverter {
                 var sign = 1
                 if j < b.count, b[j] == UInt8(ascii: "-") { sign = -1; j += 1 }
                 var num: Int?
-                while j < b.count, b[j] >= 0x30 && b[j] <= 0x39 { num = (num ?? 0) * 10 + Int(b[j] - 0x30); j += 1 }
+                while j < b.count, b[j] >= 0x30 && b[j] <= 0x39 {
+                    num = min((num ?? 0) * 10 + Int(b[j] - 0x30), 1_000_000_000)   // clamp: no overflow trap
+                    j += 1
+                }
                 if j < b.count, b[j] == UInt8(ascii: " ") { j += 1 }
                 i = j
                 let value = num.map { $0 * sign }
@@ -106,8 +109,8 @@ enum RTFConverter {
                     atGroupStart = false
                 }
                 switch word {
-                case "ansicpg": if let v = value { codepage = Int32(v) }
-                case "uc": unicodeSkip = value ?? 1
+                case "ansicpg": if let v = value, v > 0, v < 100_000 { codepage = Int32(v) }
+                case "uc": unicodeSkip = max(0, min(value ?? 1, 16))
                 case "htmlrtf": g.suppress = (value ?? 1) != 0
                 case "par", "line": if !htmlMode { emit("\n") }
                 case "tab": emit("\t")
@@ -117,7 +120,7 @@ enum RTFConverter {
                 case "u":
                     if var v = value {
                         if v < 0 { v += 65536 }
-                        if let s = Unicode.Scalar(UInt32(v)) { emit(s) }
+                        if v >= 0, let s = Unicode.Scalar(UInt32(v)) { emit(s) }
                         pendingSkip = unicodeSkip
                     }
                 default: break

@@ -98,8 +98,12 @@ struct CFBReader {
         guard !parsed.isEmpty else { throw Failure.corrupt }
 
         // Children of a storage form a red-black tree; an in-order walk lists them.
+        // `seen` is shared across the whole directory: a hostile file can't reference an entry twice
+        // (which would make the walk exponential) or form a cycle.
+        var seen = Set<Int>()
         func collect(_ id: UInt32, into out: inout [Int], depth: Int = 0) {
-            guard id != Self.noStream, Int(id) < parsed.count, depth < 4096 else { return }
+            guard id != Self.noStream, Int(id) < parsed.count, depth < 4096,
+                  seen.insert(Int(id)).inserted else { return }
             collect(tree[Int(id)].left, into: &out, depth: depth + 1)
             out.append(Int(id))
             collect(tree[Int(id)].right, into: &out, depth: depth + 1)
@@ -148,16 +152,17 @@ struct CFBReader {
     }
 
     private func chainBytes(start: UInt32, limit: Int?) throws -> Data {
+        // A valid chain visits each sector at most once, so it can't be longer than the file.
+        if let limit, limit > data.count { throw Failure.corrupt }
         var out = Data()
         var s = start
-        var hops = 0
+        var visited = Set<UInt32>()
         while s != Self.endOfChain {
-            guard let off = offset(of: s), hops <= fat.count else { throw Failure.corrupt }
+            guard let off = offset(of: s), visited.insert(s).inserted else { throw Failure.corrupt }
             out.append(data.subdata(in: off..<(off + sectorSize)))
             if let limit, out.count >= limit { break }
             guard Int(s) < fat.count else { throw Failure.corrupt }
             s = fat[Int(s)]
-            hops += 1
         }
         if let limit, out.count > limit { out = out.prefix(limit) }
         return out
@@ -166,14 +171,13 @@ struct CFBReader {
     private func miniChainBytes(start: UInt32, size: Int) throws -> Data {
         var out = Data()
         var s = start
-        var hops = 0
+        var visited = Set<UInt32>()
         while s != Self.endOfChain, out.count < size {
             let off = Int(s) * miniSectorSize
-            guard off + miniSectorSize <= miniStream.count, hops <= miniFat.count else { throw Failure.corrupt }
+            guard off + miniSectorSize <= miniStream.count, visited.insert(s).inserted else { throw Failure.corrupt }
             out.append(miniStream.subdata(in: off..<(off + miniSectorSize)))
             guard Int(s) < miniFat.count else { throw Failure.corrupt }
             s = miniFat[Int(s)]
-            hops += 1
         }
         return out.prefix(size)
     }

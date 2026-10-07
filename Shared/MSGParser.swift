@@ -113,6 +113,7 @@ enum MSGParser {
     }
 
     static func encoding(forCodepage cp: Int32) -> String.Encoding? {
+        guard cp > 0 else { return nil }
         if cp == 65001 { return .utf8 }
         if cp == 1252 { return .windowsCP1252 }
         let cf = CFStringConvertWindowsCodepageToEncoding(UInt32(cp))

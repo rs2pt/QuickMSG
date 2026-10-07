@@ -9,9 +9,12 @@ enum RTFDecompressor {
         + "\\pard\\plain\\f0\\fs20\\b\\i\\u\\tab\\tx"
     ).utf8)
 
+    private static let maxOutput = 64 << 20
+
     static func decompress(_ input: Data) -> Data? {
         guard input.count >= 16 else { return nil }
-        let rawSize = Int(input.u32(4))
+        // LZFu expands at most ~4096/2 bytes per input byte pair; cap well below the 4 GB a header can claim.
+        let rawSize = min(Int(input.u32(4)), maxOutput)
         let type = input.u32(8)
         let body = 16
 
@@ -24,7 +27,7 @@ enum RTFDecompressor {
         dict.replaceSubrange(0..<prebuilt.count, with: prebuilt)
         var writePos = prebuilt.count
         var out = [UInt8]()
-        out.reserveCapacity(rawSize)
+        out.reserveCapacity(min(rawSize, input.count * 8))
 
         let bytes = [UInt8](input)
         var i = body
