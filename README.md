@@ -10,6 +10,12 @@ Requires macOS 13 or later (Apple silicon and Intel).
 
 ## Install
 
+> **You may need to authorize the app the first time.** It is not signed with an Apple Developer ID or
+> notarized, because the author doesn't have a paid Apple Developer account. macOS will likely block the
+> first launch with a "can't be opened" warning. This is expected, and the app can be allowed in one step:
+> System Settings → Privacy & Security → scroll down → "Open Anyway", or run
+> `xattr -dr com.apple.quarantine /Applications/QuickMSG.app`. The Homebrew cask removes the quarantine flag for you.
+
 With [Homebrew](https://brew.sh):
 
 ```sh
@@ -19,14 +25,7 @@ brew install --cask rs2pt/tap/quickmsg
 Or download `QuickMSG-<version>.zip` from the [releases](https://github.com/rs2pt/QuickMSG/releases),
 move `QuickMSG.app` to `/Applications` and open it once so macOS registers the extension.
 
-The app is not notarized (it is ad-hoc signed), so macOS blocks the first launch of a manual download. Either
-allow it under System Settings → Privacy & Security → "Open Anyway", or run:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/QuickMSG.app
-```
-
-The Homebrew cask does this for you. If a preview doesn't show up right away, run `qlmanage -r`.
+If a preview doesn't show up right away, run `qlmanage -r`.
 
 ## Build
 
